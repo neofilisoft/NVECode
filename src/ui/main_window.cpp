@@ -1,5 +1,7 @@
 #include "ui/main_window.hpp"
 
+#include "ui/code_highlighter.hpp"
+
 #include <QApplication>
 #include <QCloseEvent>
 #include <QComboBox>
@@ -10,14 +12,10 @@
 #include <QFileInfo>
 #include <QFileSystemModel>
 #include <QFont>
-#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMainWindow>
-#include <QMenuBar>
 #include <QMessageBox>
-#include <QModelIndex>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSplitter>
@@ -27,8 +25,6 @@
 #include <QTextStream>
 #include <QToolBar>
 #include <QTreeView>
-#include <QVBoxLayout>
-#include <QWidget>
 
 namespace {
 
@@ -37,6 +33,7 @@ QString read_text_file(const QString& path) {
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         return {};
     }
+
     QTextStream stream(&file);
     stream.setEncoding(QStringConverter::Utf8);
     return stream.readAll();
@@ -47,10 +44,20 @@ bool write_text_file(const QString& path, const QString& content) {
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
         return false;
     }
+
     QTextStream stream(&file);
     stream.setEncoding(QStringConverter::Utf8);
     stream << content;
     return true;
+}
+
+QFont editor_font() {
+    QFont font("Cascadia Mono");
+    if (!font.exactMatch()) {
+        font = QFont("Consolas");
+    }
+    font.setPointSize(11);
+    return font;
 }
 
 }  // namespace
@@ -59,10 +66,12 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent) {
     setup_ui();
     apply_theme();
+
     open_root_path_ = QDir::currentPath();
     file_model_->setRootPath(open_root_path_);
     file_tree_->setRootIndex(file_model_->index(open_root_path_));
     path_label_->setText(open_root_path_);
+
     create_new_tab("untitled.cpp", default_snippet("cpp"), QString(), "cpp", true);
     resize(1480, 920);
     update_window_title();
@@ -84,7 +93,8 @@ void MainWindow::setup_toolbar() {
     toolbar->setMovable(false);
 
     auto* openFolderButton = new QPushButton("Open Folder", this);
-    auto* newTabButton = new QPushButton("New", this);
+    add_tab_button_ = new QPushButton("New Tab", this);
+    close_tab_button_ = new QPushButton("Close Tab", this);
     auto* saveButton = new QPushButton("Save", this);
     auto* runButton = new QPushButton("Run", this);
 
@@ -99,7 +109,8 @@ void MainWindow::setup_toolbar() {
     path_label_->setPlaceholderText("Workspace folder");
 
     toolbar->addWidget(openFolderButton);
-    toolbar->addWidget(newTabButton);
+    toolbar->addWidget(add_tab_button_);
+    toolbar->addWidget(close_tab_button_);
     toolbar->addWidget(saveButton);
     toolbar->addSeparator();
     toolbar->addWidget(new QLabel("Language", this));
@@ -110,11 +121,8 @@ void MainWindow::setup_toolbar() {
     toolbar->addWidget(path_label_);
 
     connect(openFolderButton, &QPushButton::clicked, this, [this] { open_folder(); });
-    connect(newTabButton, &QPushButton::clicked, this, [this] {
-        const auto language = language_combo_->currentData().toString();
-        const auto base = language.isEmpty() ? QStringLiteral("text") : language;
-        create_new_tab("untitled." + base, default_snippet(language), QString(), language, true);
-    });
+    connect(add_tab_button_, &QPushButton::clicked, this, [this] { add_tab(); });
+    connect(close_tab_button_, &QPushButton::clicked, this, [this] { remove_current_tab(); });
     connect(saveButton, &QPushButton::clicked, this, [this] { save_current_tab(); });
     connect(runButton, &QPushButton::clicked, this, [this] { run_current_tab(); });
 }
@@ -125,15 +133,19 @@ void MainWindow::setup_layout() {
 
     file_model_ = new QFileSystemModel(this);
     file_model_->setFilter(QDir::AllDirs | QDir::NoDotAndDotDot | QDir::Files);
+
     file_tree_ = new QTreeView(splitter);
     file_tree_->setModel(file_model_);
     file_tree_->setMinimumWidth(300);
+    file_tree_->setAlternatingRowColors(true);
     file_tree_->header()->setStretchLastSection(true);
     file_tree_->setAnimated(true);
 
     editor_tabs_ = new QTabWidget(splitter);
     editor_tabs_->setTabsClosable(true);
     editor_tabs_->setDocumentMode(true);
+    editor_tabs_->setMovable(true);
+    editor_tabs_->setUsesScrollButtons(true);
 
     splitter->addWidget(file_tree_);
     splitter->addWidget(editor_tabs_);
@@ -143,7 +155,9 @@ void MainWindow::setup_layout() {
     setCentralWidget(splitter);
 
     status_label_ = new QLabel("Ready.", this);
-    statusBar()->addPermanentWidget(status_label_);
+    syntax_label_ = new QLabel("Syntax: basic check OK", this);
+    statusBar()->addWidget(status_label_, 1);
+    statusBar()->addPermanentWidget(syntax_label_);
 }
 
 void MainWindow::setup_terminal() {
@@ -152,6 +166,7 @@ void MainWindow::setup_terminal() {
 
     terminal_output_ = new QPlainTextEdit(dock);
     terminal_output_->setReadOnly(true);
+    terminal_output_->setFont(editor_font());
     dock->setWidget(terminal_output_);
 
     addDockWidget(Qt::BottomDockWidgetArea, dock);
@@ -160,14 +175,21 @@ void MainWindow::setup_terminal() {
 void MainWindow::setup_connections() {
     connect(file_tree_, &QTreeView::doubleClicked, this, [this](const QModelIndex& index) { open_file_from_index(index); });
     connect(editor_tabs_, &QTabWidget::tabCloseRequested, this, [this](int index) { close_tab(index); });
-    connect(editor_tabs_, &QTabWidget::currentChanged, this, [this](int index) { sync_language_for_tab(index); update_window_title(); });
+    connect(editor_tabs_, &QTabWidget::currentChanged, this, [this](int index) {
+        sync_language_for_tab(index);
+        update_window_title();
+        update_syntax_status();
+    });
     connect(language_combo_, &QComboBox::currentIndexChanged, this, [this](int) {
-        if (auto* state = current_state()) {
+        if (auto* state = current_state(); state != nullptr) {
             state->language = language_combo_->currentData().toString();
+            if (state->highlighter != nullptr) {
+                state->highlighter->setLanguage(state->language);
+            }
+            update_syntax_status();
         }
     });
 }
-
 void MainWindow::apply_theme() {
     qApp->setStyleSheet(
         "QMainWindow { background: #0b1220; color: #e5e7eb; }"
@@ -221,8 +243,7 @@ void MainWindow::open_file(const QString& file_path) {
     }
 
     const QString content = read_text_file(file_path);
-    const QFileInfo info(file_path);
-    create_new_tab(info.fileName(), content, file_path, infer_language(file_path), false);
+    create_new_tab(QFileInfo(file_path).fileName(), content, file_path, infer_language(file_path), false);
     status_label_->setText("File opened.");
 }
 
@@ -237,23 +258,35 @@ void MainWindow::open_file_from_index(const QModelIndex& index) {
     open_file(file_model_->filePath(index));
 }
 
+void MainWindow::add_tab() {
+    const auto language = language_combo_->currentData().toString();
+    const auto suffix = language.isEmpty() ? QStringLiteral("txt") : language;
+    create_new_tab("untitled." + suffix, default_snippet(language), QString(), language, true);
+    status_label_->setText("New tab created.");
+}
+
 void MainWindow::create_new_tab(const QString& title, const QString& content, const QString& file_path, const QString& language, bool untitled) {
     auto* editor = new QPlainTextEdit(this);
     editor->setPlainText(content);
     editor->setTabStopDistance(4 * fontMetrics().horizontalAdvance(' '));
+    editor->setFont(editor_font());
 
-    QFont font("Cascadia Mono");
-    if (!font.exactMatch()) {
-        font = QFont("Consolas");
-    }
-    font.setPointSize(11);
-    editor->setFont(font);
+    auto* highlighter = new CodeHighlighter(editor->document());
+    highlighter->setLanguage(language);
 
     const int index = editor_tabs_->addTab(editor, title);
     editor_tabs_->setCurrentIndex(index);
-    editors_[editor] = EditorState{editor, file_path, language, untitled};
+    editors_[editor] = EditorState{editor, highlighter, file_path, language, untitled};
+
+    connect(editor, &QPlainTextEdit::textChanged, this, [this, editor] {
+        if (editor == current_editor()) {
+            update_syntax_status();
+        }
+    });
+
     sync_language_for_tab(index);
     update_window_title();
+    update_syntax_status();
 }
 
 void MainWindow::close_tab(int index) {
@@ -261,8 +294,9 @@ void MainWindow::close_tab(int index) {
         return;
     }
 
-    if (auto* state = state_for_index(index); state != nullptr) {
-        editors_.erase(state->editor);
+    auto* editor = qobject_cast<QPlainTextEdit*>(editor_tabs_->widget(index));
+    if (editor != nullptr) {
+        editors_.erase(editor);
     }
 
     auto* widget = editor_tabs_->widget(index);
@@ -270,8 +304,14 @@ void MainWindow::close_tab(int index) {
     delete widget;
 
     if (editor_tabs_->count() == 0) {
-        create_new_tab("untitled.cpp", default_snippet("cpp"), QString(), "cpp", true);
+        add_tab();
+    } else {
+        update_syntax_status();
     }
+}
+
+void MainWindow::remove_current_tab() {
+    close_tab(editor_tabs_->currentIndex());
 }
 
 void MainWindow::save_current_tab() {
@@ -306,29 +346,25 @@ void MainWindow::save_tab(int index, bool save_as) {
     state->file_path = target_path;
     state->language = infer_language(target_path);
     state->untitled = false;
+    if (state->highlighter != nullptr) {
+        state->highlighter->setLanguage(state->language);
+    }
     editor_tabs_->setTabText(index, QFileInfo(target_path).fileName());
     sync_language_for_tab(index);
+    update_window_title();
+    update_syntax_status();
     status_label_->setText("Saved.");
 }
 
 void MainWindow::run_current_tab() {
     auto* state = current_state();
-    if (state == nullptr) {
+    auto* editor = current_editor();
+    if (state == nullptr || editor == nullptr) {
         return;
     }
 
-    const auto current_index = editor_tabs_->currentIndex();
-    if (state->file_path.isEmpty() && current_index >= 0) {
-        save_tab(current_index, false);
-        state = current_state();
-        if (state == nullptr) {
-            return;
-        }
-    }
-
-    const auto* editor = qobject_cast<QPlainTextEdit*>(editor_tabs_->currentWidget());
-    if (editor == nullptr) {
-        return;
+    if (state->language.isEmpty()) {
+        state->language = language_combo_->currentData().toString();
     }
 
     terminal_output_->clear();
@@ -343,10 +379,6 @@ void MainWindow::run_current_tab() {
     const QString output = QString::fromStdString(result.output.empty() ? result.error : result.output);
     append_terminal(output.isEmpty() ? QStringLiteral("(no output)") : output);
     status_label_->setText(result.success ? "Completed." : "Failed.");
-
-    if (state->language == "html" && !result.artifact_path.empty()) {
-        append_terminal(QStringLiteral("\nPreview file: ") + QString::fromStdString(result.artifact_path));
-    }
 }
 
 void MainWindow::sync_language_for_tab(int index) {
@@ -367,6 +399,71 @@ void MainWindow::update_window_title() {
         title += QStringLiteral(" - ") + editor_tabs_->tabText(editor_tabs_->currentIndex());
     }
     setWindowTitle(title);
+}
+
+void MainWindow::update_syntax_status() {
+    if (syntax_label_ == nullptr) {
+        return;
+    }
+
+    const auto* editor = current_editor();
+    if (editor == nullptr) {
+        syntax_label_->setText("Syntax: n/a");
+        return;
+    }
+
+    const QString text = editor->toPlainText();
+    int round = 0;
+    int curly = 0;
+    int square = 0;
+    bool inSingle = false;
+    bool inDouble = false;
+    bool escaped = false;
+
+    for (const QChar ch : text) {
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+        if ((inSingle || inDouble) && ch == QChar('\\')) {
+            escaped = true;
+            continue;
+        }
+        if (!inDouble && ch == QChar('\'')) {
+            inSingle = !inSingle;
+            continue;
+        }
+        if (!inSingle && ch == QChar('"')) {
+            inDouble = !inDouble;
+            continue;
+        }
+        if (inSingle || inDouble) {
+            continue;
+        }
+
+        if (ch == QChar('(')) ++round;
+        else if (ch == QChar(')')) --round;
+        else if (ch == QChar('{')) ++curly;
+        else if (ch == QChar('}')) --curly;
+        else if (ch == QChar('[')) ++square;
+        else if (ch == QChar(']')) --square;
+
+        if (round < 0 || curly < 0 || square < 0) {
+            syntax_label_->setText("Syntax: unmatched closing token");
+            return;
+        }
+    }
+
+    if (inSingle || inDouble) {
+        syntax_label_->setText("Syntax: unclosed string");
+        return;
+    }
+    if (round != 0 || curly != 0 || square != 0) {
+        syntax_label_->setText("Syntax: unbalanced delimiters");
+        return;
+    }
+
+    syntax_label_->setText("Syntax: basic check OK");
 }
 
 void MainWindow::append_terminal(const QString& text) {
@@ -409,6 +506,10 @@ const MainWindow::EditorState* MainWindow::current_state() const {
         return nullptr;
     }
     return &it->second;
+}
+
+QPlainTextEdit* MainWindow::current_editor() const {
+    return editor_tabs_ == nullptr ? nullptr : qobject_cast<QPlainTextEdit*>(editor_tabs_->currentWidget());
 }
 
 QString MainWindow::infer_language(const QString& file_path) const {
