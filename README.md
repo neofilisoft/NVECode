@@ -1,5 +1,5 @@
-# Neofilisoft Open Compiler
-# Code Editor & Compiler (IDE)
+# Neofilisoft Visual Editor Code
+# Code Editor (IDE)
 - Python
 - C/C++
 - C#
@@ -12,3 +12,4 @@
 - Zig
 - Scala
 - Go
+ etc
