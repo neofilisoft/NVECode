@@ -1,5 +1,5 @@
 # Neofilisoft Visual Editor Code
-# Code Editor (IDE)
+# Code Editor Tool
 - Python
 - C/C++
 - C#
