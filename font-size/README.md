@@ -11,5 +11,5 @@
 
 แนวคิดการใช้งาน:
 - `Inter` เป็น default font ของ NVECode
-- end-user ยังสามารถเปลี่ยน `editor.fontFamily`, `editor.fontSize`, `terminal.integrated.fontFamily`, `terminal.integrated.fontSize` และ theme ได้เองผ่าน Settings
+- ผู้ใช้ยังสามารถเปลี่ยน `editor.fontFamily`, `editor.fontSize`, `terminal.integrated.fontFamily`, `terminal.integrated.fontSize` และ theme ได้เองผ่าน Settings
 - build/dev flow จะคัดลอกโฟลเดอร์นี้เข้า `vscode-source/font-size` เพื่อให้ตัวแอปที่ถูกแพ็กยังหา font asset เจอ
