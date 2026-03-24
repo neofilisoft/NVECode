@@ -2,7 +2,7 @@
 On-going
 # Code Editor Tool
 - Python
-- C/C++
+- C / C++
 - C#
 - Java
 - JavaScript
