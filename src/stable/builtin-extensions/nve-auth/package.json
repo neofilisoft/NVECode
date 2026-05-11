@@ -1,0 +1,54 @@
+{
+  "name": "nve-auth",
+  "displayName": "NVECode Sign-In",
+  "description": "Sign in with Google, GitHub, GitLab, or continue as Guest. OAuth client IDs are read from env vars or product.overrides.json at runtime — nothing is hard-coded.",
+  "version": "0.1.0",
+  "publisher": "neofilisoft",
+  "license": "MIT",
+  "engines": { "vscode": "^1.95.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "nve.auth.signIn",      "title": "NVECode: Sign In…" },
+      { "command": "nve.auth.signOut",     "title": "NVECode: Sign Out" },
+      { "command": "nve.auth.continueAsGuest", "title": "NVECode: Continue as Guest" }
+    ],
+    "authentication": [
+      { "id": "nve-google", "label": "Google"  },
+      { "id": "nve-github", "label": "GitHub"  },
+      { "id": "nve-gitlab", "label": "GitLab"  }
+    ],
+    "configuration": {
+      "title": "NVECode Authentication",
+      "properties": {
+        "nvecode.auth.google.clientId": {
+          "type": "string",
+          "default": "",
+          "description": "Google OAuth client ID. Falls back to env var NVE_GOOGLE_OAUTH_CLIENT_ID, then product.overrides.json."
+        },
+        "nvecode.auth.github.clientId": {
+          "type": "string",
+          "default": "",
+          "description": "GitHub OAuth client ID. Falls back to env var NVE_GITHUB_OAUTH_CLIENT_ID."
+        },
+        "nvecode.auth.gitlab.clientId": {
+          "type": "string",
+          "default": "",
+          "description": "GitLab OAuth client ID. Falls back to env var NVE_GITLAB_OAUTH_CLIENT_ID."
+        },
+        "nvecode.auth.gitlab.baseUrl": {
+          "type": "string",
+          "default": "https://gitlab.com",
+          "description": "GitLab instance URL (use https://gitlab.example.com for self-managed)."
+        },
+        "nvecode.auth.guestProfileName": {
+          "type": "string",
+          "default": "Guest",
+          "description": "Display name used for the local Guest profile."
+        }
+      }
+    }
+  }
+}
