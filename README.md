@@ -1,4 +1,4 @@
-# NVECode — Neofilisoft Visual Editor Code
+# NVECode - Neofilisoft Visual Editor Code
 
 > Telemetry-free, AI-augmented distribution of Visual Studio Code.
 
