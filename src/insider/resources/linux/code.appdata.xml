@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+	<id>@@NAME@@.desktop</id>
+	<metadata_license>@@LICENSE@@</metadata_license>
+	<project_license>@@LICENSE@@</project_license>
+	<name>@@NAME_LONG@@</name>
+	<url type="homepage">https://github.com/Neofilisoft/nvecode</url>
+	<summary>NVECode. Neofilisoft Visual Editor Code.</summary>
+	<description>
+		<p>NVECode is a Neofilisoft-rebranded, telemetry-free distribution of the open-source Visual Studio Code, with a built-in pluggable AI Agent, optional Google/GitHub/GitLab/Guest sign-in, and automatic detection of Rust, Cargo, Lua, Python and C/C++ toolchains.</p>
+	</description>
+	<screenshots>
+		<screenshot type="default">
+			<image>https://raw.githubusercontent.com/Neofilisoft/nvecode/main/icons/stable/nvecode_cnl.svg</image>
+			<caption>NVECode</caption>
+		</screenshot>
+	</screenshots>
+</component>
