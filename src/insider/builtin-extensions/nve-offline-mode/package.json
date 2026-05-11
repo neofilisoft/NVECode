@@ -1,0 +1,34 @@
+{
+  "name": "nve-offline-mode",
+  "displayName": "NVECode Offline Mode",
+  "description": "Switch NVECode to offline mode from the status bar. Blocks marketplace, update and AI Agent network calls without touching telemetry settings.",
+  "version": "0.1.0",
+  "publisher": "neofilisoft",
+  "license": "MIT",
+  "engines": { "vscode": "^1.95.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "nve.offlineMode.toggle", "title": "NVECode: Toggle Offline Mode" },
+      { "command": "nve.offlineMode.on",     "title": "NVECode: Enable Offline Mode"  },
+      { "command": "nve.offlineMode.off",    "title": "NVECode: Disable Offline Mode" }
+    ],
+    "configuration": {
+      "title": "NVECode",
+      "properties": {
+        "nvecode.offlineMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "When on, NVECode blocks all marketplace, update and AI Agent network calls. Telemetry is already removed at build time; this toggle is for everything else."
+        },
+        "nvecode.offlineMode.blockUpdates": {
+          "type": "boolean",
+          "default": true,
+          "description": "Also block update checks while offline mode is on."
+        }
+      }
+    }
+  }
+}

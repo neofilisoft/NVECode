@@ -1,0 +1,46 @@
+{
+  "name": "nve-toolchain",
+  "displayName": "NVECode Toolchain Detector",
+  "description": "Detect Rust, Cargo, Lua, Python and C/C++ toolchains already installed on this machine. NVECode does not bundle toolchains.",
+  "version": "0.1.0",
+  "publisher": "neofilisoft",
+  "license": "MIT",
+  "engines": { "vscode": "^1.95.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "nve.toolchains.show",  "title": "NVECode: Show Toolchains" },
+      { "command": "nve.toolchains.recheck", "title": "NVECode: Recheck Toolchains" }
+    ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "nve-toolchain",
+          "title": "Toolchains",
+          "icon": "$(tools)"
+        }
+      ]
+    },
+    "views": {
+      "nve-toolchain": [
+        { "id": "nve-toolchain.list", "name": "Detected toolchains" }
+      ]
+    },
+    "configuration": {
+      "title": "NVECode Toolchains",
+      "properties": {
+        "nvecode.toolchains.checkOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Probe the PATH on startup."
+        },
+        "nvecode.toolchains.recommendedRust":   { "type": "string", "default": "1.95.0" },
+        "nvecode.toolchains.recommendedLua":    { "type": "string", "default": "5.5" },
+        "nvecode.toolchains.recommendedPython": { "type": "string", "default": "3.10" },
+        "nvecode.toolchains.recommendedCxx":    { "type": "string", "default": "C++17" }
+      }
+    }
+  }
+}

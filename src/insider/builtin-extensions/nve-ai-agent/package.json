@@ -1,0 +1,82 @@
+{
+  "name": "nve-ai-agent",
+  "displayName": "NVECode AI Agent",
+  "description": "Pluggable LLM-powered AI Agent panel. Bring your own provider — OpenAI, Anthropic, Ollama, Azure OpenAI, or any OpenAI-compatible endpoint.",
+  "version": "0.1.0",
+  "publisher": "neofilisoft",
+  "license": "MIT",
+  "engines": { "vscode": "^1.95.0" },
+  "categories": ["Other", "Machine Learning"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "nve-ai-agent",
+          "title": "AI Agent",
+          "icon": "$(sparkle)"
+        }
+      ]
+    },
+    "views": {
+      "nve-ai-agent": [
+        { "id": "nve-ai-agent.chat", "name": "Chat", "type": "webview" }
+      ]
+    },
+    "commands": [
+      { "command": "nve.aiAgent.open",          "title": "NVECode: Open AI Agent" },
+      { "command": "nve.aiAgent.newChat",       "title": "NVECode: New AI Agent Chat" },
+      { "command": "nve.aiAgent.configure",     "title": "NVECode: Configure AI Agent" },
+      { "command": "nve.aiAgent.clearSecrets",  "title": "NVECode: Clear AI Agent Credentials" }
+    ],
+    "keybindings": [
+      {
+        "command": "nve.aiAgent.open",
+        "key":     "ctrl+alt+a",
+        "mac":     "cmd+alt+a"
+      }
+    ],
+    "configuration": {
+      "title": "NVECode AI Agent",
+      "properties": {
+        "nvecode.aiAgent.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the AI Agent panel."
+        },
+        "nvecode.aiAgent.provider": {
+          "type": "string",
+          "enum": ["openai-compatible", "anthropic", "ollama", "openai", "azure-openai"],
+          "default": "openai-compatible",
+          "description": "LLM provider. No provider is hard-coded; configure freely."
+        },
+        "nvecode.aiAgent.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Base URL of the provider (used for openai-compatible / ollama / azure-openai)."
+        },
+        "nvecode.aiAgent.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model identifier the provider expects."
+        },
+        "nvecode.aiAgent.contextWindowChars": {
+          "type": "number",
+          "default": 32000,
+          "description": "Rolling context size, in characters."
+        },
+        "nvecode.aiAgent.allowToolUse": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow the agent to invoke local tools (read/write file, run task)."
+        },
+        "nvecode.aiAgent.systemPrompt": {
+          "type": "string",
+          "default": "",
+          "description": "Optional system prompt override."
+        }
+      }
+    }
+  }
+}
